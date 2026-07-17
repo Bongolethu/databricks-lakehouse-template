@@ -1,0 +1,22 @@
+bundle:
+  name: databricks-lakehouse-template
+
+# Link processing scripts into the asset compiler mapping layer
+include:
+  - resources/clusters.yml
+  - resources/jobs.yml
+  - resources/unity_catalog.yml
+
+targets:
+  # Staging Topology Targets (Driven by the DevOps develop branch)
+  staging:
+    workspace:
+      host: https://adb-staging.azuredatabricks.net
+    mode: development
+    compute_id: ${resources.clusters.dev_shared_pool.id}
+
+  # Production Topology Targets (Locked to the main branch)
+  prod:
+    workspace:
+      host: https://adb-prod.azuredatabricks.net
+    mode: production

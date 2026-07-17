@@ -1,0 +1,31 @@
+resources:
+  jobs:
+    enterprise_data_pipeline:
+      name: "End_to_End_Lakehouse_Orchestration"
+      tasks:
+        # Task 1: Ingest Raw Streams to Bronze & Cleanse to Silver via DLT
+        - task_key: "dlt_pipeline_execution"
+          pipeline_task:
+            pipeline_id: ${resources.pipelines.customer_interactions_dlt.id}
+            
+        # Task 2: Vector Search Index Sync for Claude AI Context
+        - task_key: "ai_vector_search_sync"
+          depends_on:
+            - task_key: "dlt_pipeline_execution"
+          notebook_task:
+            notebook_path: ../../src/ai_feature_store/vector_search_sync.py
+          existing_cluster_id: ${resources.clusters.dev_shared_pool.id}
+
+  pipelines:
+    customer_interactions_dlt:
+      name: "Customer_Interactions_DLT_Engine"
+      target: "main_silver"
+      continuous: false
+      development: false
+      libraries:
+        - notebook:
+            path: ../../src/pipelines/dlt_bronze_ingest.py
+        - notebook:
+            path: ../../src/pipelines/dlt_silver_cleanse.py
+        - notebook:
+            path: ../../src/pipelines/dlt_gold_analytics.py

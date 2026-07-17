@@ -1,0 +1,21 @@
+resources:
+  clusters:
+    # Managed compute instance configuration for developers and analysts
+    dev_shared_pool:
+      cluster_name: "Shared Engineering Workspace Compute"
+      spark_version: "14.3.x-scala2.12"
+      node_type_id: "Standard_D4ds_v5"
+      autotermination_minutes: 20
+      autoscale:
+        min_workers: 1
+        max_workers: 8
+      spark_conf:
+        spark.databricks.cluster.profile: "shared"
+        spark.databricks.repl.allowedLanguages: "python,sql"
+        
+    # Serverless Warehouse Blueprint configuration for BI and AI/BI Genie Rooms
+    bi_serverless_warehouse:
+      warehouse_type: "PRO"
+      cluster_size: "Medium"
+      auto_stop_mins: 10
+      enable_serverless_compute: true

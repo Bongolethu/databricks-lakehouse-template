@@ -1,0 +1,15 @@
+resources:
+  catalogs:
+    main_catalog:
+      name: "main"
+      comment: "Primary Enterprise Lakehouse Storage Space managed via DevOps DAB loops."
+      schemas:
+        bronze_layer:
+          name: "bronze"
+          comment: "Append-only landing zone for raw multi-tenant data ingest streams."
+        silver_layer:
+          name: "silver"
+          comment: "Scrubbed and structured domain data sets validated via contract expectations."
+        gold_layer:
+          name: "gold"
+          comment: "Highly indexed semantic data structures mapped to PowerBI and Claude interfaces."
