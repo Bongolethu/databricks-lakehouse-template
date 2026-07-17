@@ -1,0 +1,26 @@
+# filepath: .github/CODEOWNERS
+
+# ==============================================================================
+# 👥 METASTORE & COMPUTE ENVIRONMENT SECURITY (Requires Solution Architects)
+# ==============================================================================
+/infra/terraform/                   @your-org/solution-architects
+/infra/resources/clusters.yml       @your-org/solution-architects
+
+# ==============================================================================
+# 🔒 GOVERNANCE & ACCESS CONTROL POLICIES (Requires Architects & Tech Analysts)
+# ==============================================================================
+/src/governance/                    @your-org/solution-architects @your-org/technical-analysts
+/infra/resources/unity_catalog.yml  @your-org/solution-architects
+
+# ==============================================================================
+# 💻 DATA COMPUTE & PIPELINE TRANSFORMS (Requires Data Developers)
+# ==============================================================================
+/src/pipelines/                     @your-org/data-developers
+/infra/resources/jobs.yml           @your-org/data-developers
+/tests/unit/                        @your-org/data-developers
+
+# ==============================================================================
+# 🧪 CLAUDE PROMPT MATRICES & EVAL SAMPLES (Requires QA Testers & BAs)
+# ==============================================================================
+/src/prompts/                       @your-org/qa-testers @your-org/business-analysts
+/tests/integration/                 @your-org/qa-testers
