@@ -1,38 +1,48 @@
 {
-  "persona": "Business Analyst (BA)",
-  "workspace_access": {
-    "entitlements": {
-      "databricks-sql-access": true,
-      "workspace-access": true,
-      "ai-bi-genie-spaces-creation": true
+    "persona": "Business Analyst (BA)",
+    "workspace_access": {
+        "entitlements": {
+            "databricks-sql-access": true,
+            "workspace-access": true,
+            "ai-bi-genie-spaces-creation": true
+        },
+        "default_compute": {
+            "sql_warehouse_type": "Serverless",
+            "allowed_warehouses": [
+                "gold_semantic_warehouse"
+            ]
+        }
     },
-    "default_compute": {
-      "sql_warehouse_type": "Serverless",
-      "allowed_warehouses": ["gold_semantic_warehouse"]
+    "unity_catalog_permissions": {
+        "grants": [
+            {
+                "catalog": "main",
+                "schema": "gold",
+                "privileges": [
+                    "SELECT",
+                    "READ_VOLUME"
+                ]
+            },
+            {
+                "catalog": "system",
+                "schema": "information_schema",
+                "privileges": [
+                    "SELECT"
+                ]
+            }
+        ],
+        "restrictions": {
+            "deny_raw_storage_direct_access": true,
+            "mask_pii_by_default": true
+        }
+    },
+    "governance_assignment": {
+        "role": "Data Steward",
+        "can_modify_comments": true,
+        "can_apply_tags": true,
+        "allowed_tag_types": [
+            "Business_Glossary",
+            "Retention_Period"
+        ]
     }
-  },
-  "unity_catalog_permissions": {
-    "grants": [
-      {
-        "catalog": "main",
-        "schema": "gold",
-        "privileges": ["SELECT", "READ_VOLUME"]
-      },
-      {
-        "catalog": "system",
-        "schema": "information_schema",
-        "privileges": ["SELECT"]
-      }
-    ],
-    "restrictions": {
-      "deny_raw_storage_direct_access": true,
-      "mask_pii_by_default": true
-    }
-  },
-  "governance_assignment": {
-    "role": "Data Steward",
-    "can_modify_comments": true,
-    "can_apply_tags": true,
-    "allowed_tag_types": ["Business_Glossary", "Retention_Period"]
-  }
 }

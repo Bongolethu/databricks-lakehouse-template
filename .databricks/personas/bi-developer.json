@@ -1,41 +1,50 @@
 {
-  "persona": "BI Developer / Analytics Engineer",
-  "workspace_access": {
-    "entitlements": {
-      "databricks-sql-access": true,
-      "workspace-access": true
+    "persona": "BI Developer / Analytics Engineer",
+    "workspace_access": {
+        "entitlements": {
+            "databricks-sql-access": true,
+            "workspace-access": true
+        },
+        "default_compute": {
+            "sql_warehouse_type": "Serverless",
+            "allowed_warehouses": [
+                "gold_semantic_warehouse",
+                "reporting_analytics_warehouse"
+            ]
+        }
     },
-    "default_compute": {
-      "sql_warehouse_type": "Serverless",
-      "allowed_warehouses": ["gold_semantic_warehouse", "reporting_analytics_warehouse"]
+    "unity_catalog_permissions": {
+        "grants": [
+            {
+                "catalog": "main",
+                "schema": "gold",
+                "privileges": [
+                    "SELECT"
+                ]
+            },
+            {
+                "catalog": "system",
+                "schema": "billing",
+                "privileges": [
+                    "SELECT"
+                ]
+            },
+            {
+                "catalog": "system",
+                "schema": "access",
+                "privileges": [
+                    "SELECT"
+                ]
+            }
+        ],
+        "restrictions": {
+            "deny_raw_storage_direct_access": true,
+            "mask_pii_by_default": true
+        }
+    },
+    "governance_assignment": {
+        "role": "Consumer Auditor",
+        "can_modify_comments": false,
+        "can_apply_tags": false
     }
-  },
-  "unity_catalog_permissions": {
-    "grants": [
-      {
-        "catalog": "main",
-        "schema": "gold",
-        "privileges": ["SELECT"]
-      },
-      {
-        "catalog": "system",
-        "schema": "billing",
-        "privileges": ["SELECT"]
-      },
-      {
-        "catalog": "system",
-        "schema": "access",
-        "privileges": ["SELECT"]
-      }
-    ],
-    "restrictions": {
-      "deny_raw_storage_direct_access": true,
-      "mask_pii_by_default": true
-    }
-  },
-  "governance_assignment": {
-    "role": "Consumer Auditor",
-    "can_modify_comments": false,
-    "can_apply_tags": false
-  }
 }
