@@ -1,0 +1,56 @@
+name: "Claude AI Model & Prompt Evaluation"
+
+on:
+  push:
+    branches: [ main, develop ]
+    paths:
+      - 'docs/business-analyst/PROMPT-REQUIREMENTS/**'
+      - 'src/prompts/**'
+  pull_request:
+    branches: [ main, develop ]
+    paths:
+      - 'docs/business-analyst/PROMPT-REQUIREMENTS/**'
+      - 'src/prompts/**'
+  workflow_dispatch: # Allows the QA/AI Tester to run evaluations manually
+
+permissions:
+  contents: read
+  issues: write
+
+jobs:
+  run-prompt-evaluation:
+    name: "Execute LLM-as-a-Judge Evaluation"
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: "Checkout Repository"
+        uses: actions/checkout@v4
+
+      - name: "Set up Python Environment"
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+          cache: 'pip'
+
+      - name: "Install Testing and AI Dependencies"
+        run: |
+          python -m pip install --upgrade pip
+          pip install pytest anthropic databricks-sdk pydantic
+
+      - name: "Run Prompt Regression & Semantic Alignment Tests"
+        env:
+          # Secure API tokens configured in GitHub Secrets
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+          DATABRICKS_HOST: ${{ secrets.DATABRICKS_HOST }}
+          DATABRICKS_TOKEN: ${{ secrets.DATABRICKS_TOKEN }}
+        run: |
+          # Executes pytest specifically targeting prompt evaluation matrices
+          # -v: Verbose output for test runs
+          # -m: Target specific test markers if applicable
+          pytest tests/integration/test_prompt_regression.py -v
+
+      - name: "Notify Slack or Teams on Failure"
+        if: failure()
+        run: |
+          echo "Prompt evaluation failed. High semantic drift, hallucination, or PII guardrail breach detected."
+          # Optional: Add curl commands here to hit your corporate webhook endpoints
