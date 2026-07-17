@@ -1,0 +1,31 @@
+{
+  "persona": "QA / AI Data Quality Tester",
+  "workspace_access": {
+    "entitlements": {
+      "databricks-sql-access": true,
+      "workspace-access": true
+    },
+    "default_compute": {
+      "cluster_policy_permissions": ["shared_developer_compute"],
+      "allowed_warehouses": ["test_validation_warehouse"]
+    }
+  },
+  "unity_catalog_permissions": {
+    "grants": [
+      {
+        "catalog": "main",
+        "schema": "*",
+        "privileges": ["SELECT", "READ_VOLUME"]
+      }
+    ],
+    "restrictions": {
+      "deny_raw_storage_direct_access": true,
+      "mask_pii_by_default": false 
+    }
+  },
+  "governance_assignment": {
+    "role": "Quality & Compliance Validator",
+    "can_run_assertions": true,
+    "can_view_quarantine_tables": true
+  }
+}

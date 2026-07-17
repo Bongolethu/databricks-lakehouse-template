@@ -1,0 +1,42 @@
+{
+  "persona": "Data / AI Developer",
+  "workspace_access": {
+    "entitlements": {
+      "databricks-sql-access": true,
+      "workspace-access": true,
+      "allow-instance-pool-create": true
+    },
+    "default_compute": {
+      "cluster_policy_permissions": ["dlt_pipeline_execution_policy", "shared_developer_compute"],
+      "allowed_warehouses": ["dev_engineering_warehouse"]
+    }
+  },
+  "unity_catalog_permissions": {
+    "grants": [
+      {
+        "catalog": "main",
+        "schema": "bronze",
+        "privileges": ["SELECT", "MODIFY", "READ_VOLUME", "WRITE_VOLUME"]
+      },
+      {
+        "catalog": "main",
+        "schema": "silver",
+        "privileges": ["SELECT", "MODIFY", "READ_VOLUME", "WRITE_VOLUME"]
+      },
+      {
+        "catalog": "main",
+        "schema": "gold",
+        "privileges": ["SELECT", "MODIFY"]
+      }
+    ],
+    "restrictions": {
+      "deny_raw_storage_direct_access": true,
+      "bypass_masking_in_dev": true
+    }
+  },
+  "governance_assignment": {
+    "role": "Pipeline Implementer",
+    "can_modify_comments": false,
+    "can_apply_tags": false
+  }
+}

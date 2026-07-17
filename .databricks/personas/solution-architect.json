@@ -1,0 +1,33 @@
+{
+  "persona": "Enterprise / Solution Architect",
+  "workspace_access": {
+    "entitlements": {
+      "databricks-sql-access": true,
+      "workspace-access": true,
+      "cluster-create": true
+    },
+    "default_compute": {
+      "cluster_policy_permissions": ["uc_governed_policy_admin"],
+      "allowed_warehouses": ["*"]
+    }
+  },
+  "unity_catalog_permissions": {
+    "grants": [
+      {
+        "catalog": "*",
+        "schema": "*",
+        "privileges": ["CREATE_CATALOG", "CREATE_EXTERNAL_LOCATION", "MANAGE_ALLOWLIST"]
+      }
+    ],
+    "restrictions": {
+      "deny_raw_storage_direct_access": false,
+      "enforce_storage_credentials": true
+    }
+  },
+  "governance_assignment": {
+    "role": "Security & Architecture Admin",
+    "can_modify_security_policies": true,
+    "can_assign_row_filters": true,
+    "can_assign_column_masks": true
+  }
+}

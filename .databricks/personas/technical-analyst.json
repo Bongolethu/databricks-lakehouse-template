@@ -1,0 +1,37 @@
+{
+  "persona": "Technical Analyst (TA)",
+  "workspace_access": {
+    "entitlements": {
+      "databricks-sql-access": true,
+      "workspace-access": true
+    },
+    "default_compute": {
+      "sql_warehouse_type": "Serverless",
+      "allowed_warehouses": ["silver_mapping_warehouse"]
+    }
+  },
+  "unity_catalog_permissions": {
+    "grants": [
+      {
+        "catalog": "main",
+        "schema": "bronze",
+        "privileges": ["SELECT", "READ_VOLUME"]
+      },
+      {
+        "catalog": "main",
+        "schema": "silver",
+        "privileges": ["SELECT", "READ_VOLUME"]
+      }
+    ],
+    "restrictions": {
+      "deny_raw_storage_direct_access": true,
+      "mask_pii_by_default": true
+    }
+  },
+  "governance_assignment": {
+    "role": "Technical Data Steward",
+    "can_modify_comments": true,
+    "can_apply_tags": true,
+    "allowed_tag_types": ["Data_Type_Mapping", "Logical_Key_Definition"]
+  }
+}

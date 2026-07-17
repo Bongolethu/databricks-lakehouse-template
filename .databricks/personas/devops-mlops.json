@@ -1,0 +1,32 @@
+{
+  "persona": "DevOps / MLOps Engineer",
+  "workspace_access": {
+    "entitlements": {
+      "databricks-sql-access": true,
+      "workspace-access": true,
+      "service-principal-management": true
+    },
+    "default_compute": {
+      "cluster_policy_permissions": ["global_devops_policy"],
+      "allowed_warehouses": ["*"]
+    }
+  },
+  "unity_catalog_permissions": {
+    "grants": [
+      {
+        "catalog": "*",
+        "schema": "*",
+        "privileges": ["USE_CATALOG", "USE_SCHEMA", "APPLY_TAG"]
+      }
+    ],
+    "restrictions": {
+      "deny_raw_storage_direct_access": false
+    }
+  },
+  "governance_assignment": {
+    "role": "Automation Lifecycle Manager",
+    "can_modify_security_policies": false,
+    "can_execute_terraform_deployment": true,
+    "can_manage_service_principals": true
+  }
+}
