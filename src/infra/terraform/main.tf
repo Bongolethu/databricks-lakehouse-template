@@ -15,10 +15,10 @@ terraform {
       source  = "hashicorp/google"
       version = "~> 5.0"
     }
-    databricks = {
+    {% comment %} databricks = {
       source  = "databricks/databricks"
       version = "~> 1.20"
-    }
+    } {% endcomment %}
   }
 }
 
@@ -35,7 +35,7 @@ provider "databricks" {
 # ==========================================
 # 2. INPUT VARIABLES
 # ==========================================
-variable "gcp_project_id" {
+{% comment %} variable "gcp_project_id" {
   type        = string
   description = "The alphanumeric Google Cloud Project ID."
 }
@@ -60,7 +60,7 @@ variable "databricks_workspace_host" {
 variable "databricks_uc_service_account" {
   type        = string
   description = "The IAM Service Account email used by Unity Catalog to access GCS buckets."
-}
+} {% endcomment %}
 
 # ==========================================
 # 3. SECURE INFRASTRUCTURE (GCS Storage Bucket)
