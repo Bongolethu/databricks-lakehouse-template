@@ -15,7 +15,6 @@ jobs:
     runs-on: ubuntu-latest
     environment: production
 
-    # Set default working directory so all steps run in your terraform folder
     defaults:
       run:
         shell: bash
@@ -25,10 +24,14 @@ jobs:
     - name: Checkout
       uses: actions/checkout@v4
 
+    # Authenticate to GCP so Terraform can access the GCS backend
+    - name: Authenticate to Google Cloud
+      uses: google-github-actions/auth@v2
+      with:
+        credentials_json: ${{ secrets.GCP_SA_KEY }}
+
     - name: Setup Terraform
       uses: hashicorp/setup-terraform@v3
-      with:
-        cli_config_credentials_token: ${{ secrets.TF_API_TOKEN }}
 
     - name: Terraform Init
       run: terraform init
