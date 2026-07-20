@@ -5,7 +5,8 @@ variable "gcp_project_id" {
 
 variable "databricks_workspace_host" {
   type        = string
-  description = "The Databricks workspace URL"
+  description = "Databricks Workspace Host URL"
+  # DO NOT put default = "https://..." here!
 }
 
 variable "databricks_uc_service_account" {
