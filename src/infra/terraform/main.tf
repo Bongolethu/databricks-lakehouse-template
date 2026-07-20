@@ -23,7 +23,7 @@ resource "databricks_storage_credential" "external_storage_credential" {
   name = "gcp_lakehouse_storage_credential"
 
   databricks_gcp_service_account {
-    email = "databricks-uc-sa@${var.gcp_project_id}.iam.gserviceaccount.com"
+    service_account_user_email = "databricks-uc-sa@${var.gcp_project_id}.iam.gserviceaccount.com"
   }
 }
 
