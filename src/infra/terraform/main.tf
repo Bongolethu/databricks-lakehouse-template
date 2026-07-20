@@ -19,12 +19,11 @@ import {
 # 2. Databricks Storage Credential & External Location
 # ==============================================================================
 
+# Databricks generates its own GCP Service Account for this credential
 resource "databricks_storage_credential" "external_storage_credential" {
   name = "gcp_lakehouse_storage_credential"
 
-  databricks_gcp_service_account {
-    email = "databricks-uc-sa@${var.gcp_project_id}.iam.gserviceaccount.com"
-  }
+  databricks_gcp_service_account {}
 }
 
 resource "databricks_external_location" "lakehouse_external_location" {
