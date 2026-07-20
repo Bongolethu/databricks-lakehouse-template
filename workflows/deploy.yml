@@ -1,0 +1,43 @@
+name: Deploy to Google Cloud
+
+on:
+  push:
+    branches:
+      - main # Triggers the workflow when you push to the main branch
+
+permissions:
+  contents: 'read'
+  id-token: 'write' # Mandatory: Allows GitHub to request a secure OIDC token
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+    - name: Checkout Code
+      uses: actions/checkout@v4
+
+    # 1. Authenticate with Google Cloud using your Workload Identity Pool
+    - id: 'auth'
+      name: 'Authenticate to Google Cloud'
+      uses: 'google-github-actions/auth@v2'
+      with:
+        # Full resource path of your Workload Identity Provider
+        workload_identity_provider: 'projects/884945754396/locations/global/workloadIdentityPools/github-pool/providers/github-provider'
+        # The dedicated service account we created for GitHub
+        service_account: 'github-deployer@bongo-143414.iam.gserviceaccount.com'
+
+    # 2. Set up the Google Cloud SDK
+    - name: 'Set up Cloud SDK'
+      uses: 'google-github-actions/setup-gcloud@v2'
+      with:
+        project_id: 'bongo-143414'
+
+    # 3. Example Deployment Step: Deploy a Cloud Run Service
+    # (Replace this step with your actual deployment commands)
+    - name: 'Deploy to Cloud Run'
+      run: |
+        gcloud run deploy my-web-app \
+          --source=. \
+          --region=us-central1 \
+          --allow-unauthenticated \
+          --quiet

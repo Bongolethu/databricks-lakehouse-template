@@ -1,119 +1,123 @@
 # ==========================================
-# 1. TERRAFORM PROVIDERS CONFIGURATION
+# 1. TERRAFORM & PROVIDERS CONFIGURATION
 # ==========================================
 terraform {
+  required_version = ">= 1.5.0"
+  
+  # Add this block to save your state file in GCP
+  backend "gcs" {
+    bucket  = " bongo-143414.appspot.com"
+    prefix  = "terraform/state"
+  }
+  
   required_providers {
-    azurerm = {
-      source  = "hashicorp/azurerm"
-      version = "~> 3.0"
+    google = {
+      source  = "hashicorp/google"
+      version = "~> 5.0"
     }
     databricks = {
       source  = "databricks/databricks"
-      version = "~> 1.0"
+      version = "~> 1.20"
     }
   }
+}
+
+provider "google" {
+  project = var.gcp_project_id
+  region  = var.gcp_region
+}
+
+# The Databricks provider handles workspace-level object configurations
+provider "databricks" {
+  host = var.databricks_workspace_host
 }
 
 # ==========================================
 # 2. INPUT VARIABLES
 # ==========================================
-variable "storage_account_name" {
+variable "gcp_project_id" {
   type        = string
-  description = "The name of the Azure ADLS Gen2 storage account for the Lakehouse."
+  description = "The alphanumeric Google Cloud Project ID."
 }
 
-variable "storage_account_resource_id" {
+variable "gcp_region" {
   type        = string
-  description = "The resource ID of the storage account for file system mounting."
+  default     = "us-central1"
+  description = "The targeted Google Cloud region for infrastructure deployment."
 }
 
-variable "azure_managed_identity_connector_id" {
+variable "environment" {
   type        = string
-  description = "The resource ID of the Azure Databricks Access Connector."
+  default     = "dev"
+  description = "Deployment environment stage tag (e.g., dev, prod)."
+}
+
+variable "databricks_workspace_host" {
+  type        = string
+  description = "The specific Databricks workspace URL (e.g., https://12345.gcp.databricks.com)."
+}
+
+variable "databricks_uc_service_account" {
+  type        = string
+  description = "The IAM Service Account email used by Unity Catalog to access GCS buckets."
 }
 
 # ==========================================
-# 3. DYNAMIC PERSONA INPUT PARSING
+# 3. SECURE INFRASTRUCTURE (GCS Storage Bucket)
 # ==========================================
-locals {
-  # Dynamically pull persona structures declared at the repository root
-  solution_architect  = jsondecode(file("${path.module}/../../.databricks/personas/solution-architect.json"))
-  technical_analyst   = jsondecode(file("${path.module}/../../.databricks/personas/technical-analyst.json"))
-  business_analyst    = jsondecode(file("${path.module}/../../.databricks/personas/business-analyst.json"))
-  data_developer      = jsondecode(file("${path.module}/../../.databricks/personas/data-developer.json"))
-}
+resource "google_storage_bucket" "lakehouse_bucket" {
+  name                        = "enterprise-dl-lakehouse-${var.environment}-${var.gcp_project_id}"
+  location                    = upper(var.gcp_region)
+  storage_class               = "STANDARD"
+  uniform_bucket_level_access = true
+  force_destroy               = var.environment == "dev" ? true : false
 
-# ==========================================
-# 4. IDENTITY PROVIDER (SCIM ENTITLEMENTS)
-# ==========================================
-resource "databricks_group" "solution_architects" {
-  display_name          = local.solution_architect.persona
-  allow_cluster_create  = local.solution_architect.workspace_access.entitlements.workspace-access
-  databricks_sql_access = local.solution_architect.workspace_access.entitlements.databricks-sql-access
-}
-
-resource "databricks_group" "technical_analysts" {
-  display_name          = local.technical_analyst.persona
-  databricks_sql_access = local.technical_analyst.workspace_access.entitlements.databricks-sql-access
-}
-
-resource "databricks_group" "business_analysts" {
-  display_name          = local.business_analyst.persona
-  databricks_sql_access = local.business_analyst.workspace_access.entitlements.databricks-sql-access
-}
-
-resource "databricks_group" "data_developers" {
-  display_name          = local.data_developer.persona
-  allow_cluster_create  = local.data_developer.workspace_access.entitlements.workspace-access
-  databricks_sql_access = local.data_developer.workspace_access.entitlements.databricks-sql-access
-}
-
-# ==========================================
-# 5. SECURE STORAGE & UNITY CATALOG MOUNTING
-# ==========================================
-resource "azurerm_storage_data_lake_gen2_filesystem" "metastore_container" {
-  name               = "unity-catalog-metastore-root"
-  storage_account_id = var.storage_account_resource_id
-}
-
-resource "databricks_storage_credential" "external_storage_credential" {
-  name = "lakehouse_execution_credential"
-  azure_managed_identity {
-    access_connector_id = var.azure_managed_identity_connector_id
+  versioning {
+    enabled = true
   }
-  comment = "Managed identity wrapper leveraged by the DLT execution cluster engines."
-  depends_on = [azurerm_storage_data_lake_gen2_filesystem.metastore_container]
+
+  lifecycle_rule {
+    condition {
+      age = 90
+    }
+    action {
+      type = "Delete"
+    }
+  }
 }
 
+# ==========================================
+# 4. DATABRICKS UNITY CATALOG GOVERNANCE
+# ==========================================
+
+# Establishes the trusted data execution identity inside the metastore
+resource "databricks_storage_credential" "external_storage_credential" {
+  name = "gcp_lakehouse_execution_credential"
+  
+  gcp_service_account {
+    email = var.databricks_uc_service_account
+  }
+  
+  comment = "Delegated service identity utilized by Unity Catalog to interact with GCS."
+}
+
+# Declares the root isolation boundary for raw landing data
 resource "databricks_external_location" "bronze_external_location" {
-  name            = "bronze_raw_landing"
-  url             = "abfss://${azurerm_storage_data_lake_gen2_filesystem.metastore_container.name}@${var.storage_account_name}.dfs.core.windows.net/bronze"
+  name            = "${var.environment}_bronze_raw_landing"
+  url             = "gs://${google_storage_bucket.lakehouse_bucket.name}/bronze"
   credential_name = databricks_storage_credential.external_storage_credential.name
-  comment         = "Isolates the raw landing entry zone boundary."
+  comment         = "Isolates the raw landing data entry zone boundary within Google Cloud Storage."
 }
 
 # ==========================================
-# 6. ENCRYPTED VAULT SECRETS BACKING
+# 5. OUTPUTS
 # ==========================================
-resource "databricks_secret_scope" "ai_credentials" {
-  name                     = "ai_credentials"
-  initial_manage_principal = "users"
+output "gcs_bucket_name" {
+  value       = google_storage_bucket.lakehouse_bucket.name
+  description = "The generated Google Cloud Storage bucket path name."
 }
 
-# Grant Data Developers read access to authorization variables for testing purposes
-resource "databricks_secret_acl" "dev_secret_access" {
-  principal  = databricks_group.data_developers.display_name
-  scope      = databricks_secret_scope.ai_credentials.name
-  permission = "READ"
-}
-
-# ==========================================
-# 7. OUTPUT CONFIGURATIONS
-# ==========================================
-output "storage_credential_name" {
-  value = databricks_storage_credential.external_storage_credential.name
-}
-
-output "bronze_path" {
-  value = databricks_external_location.bronze_external_location.url
+output "external_location_url" {
+  value       = databricks_external_location.bronze_external_location.url
+  description = "The verified external data path registered within Databricks Unity Catalog."
 }

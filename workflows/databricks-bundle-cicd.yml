@@ -1,128 +1,114 @@
-name: "Databricks Lakehouse & DAB Deployment"
+name: "Databricks Asset Bundle & Infra CI/CD (GCP)"
 
 on:
   push:
-    branches: [ main, develop ]
-    paths-ignore:
-      - 'docs/business-analyst/📋 USE-CASES/**'
-      - 'README.md'
+    branches:
+      - main
+      - develop
   pull_request:
-    branches: [ main, develop ]
-    paths-ignore:
-      - 'docs/business-analyst/📋 USE-CASES/**'
-      - 'README.md'
-  workflow_dispatch:
+    branches:
+      - main
+      - develop
 
-# Enforce secure OIDC token generation capabilities at the workflow root
+# Required by Google OIDC to request the JWT token
 permissions:
-  id-token: write
   contents: read
+  id-token: write
 
 jobs:
-  # ==========================================
-  # STEP 1: CODE QUALITY & VALIDATION LAYER
-  # ==========================================
-  validate:
-    name: "Validate Code & DAB Configurations"
+  ci-pipeline:
+    name: "Build, Validate and Test Pipeline"
     runs-on: ubuntu-latest
     steps:
       - name: "Checkout Code"
         uses: actions/checkout@v4
 
-      - name: "Set up Python"
+      - name: "Set up Python Environment"
         uses: actions/setup-python@v5
         with:
-          python-version: '3.11'
-          cache: 'pip'
+          python-version: "3.10"
+          cache: "pip"
 
-      - name: "Install Linting Stacks"
-        run: pip install ruff pytest
+      - name: "Install Build Dependencies"
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
 
-      - name: "Run Code Linter"
-        run: ruff check src/
+      - name: "Run Local Python Unit Tests"
+        run: |
+          pytest tests/unit/
 
-      - name: "Setup Databricks CLI"
-        uses: databricks/setup-cli@v1
+      - name: "Install Databricks CLI"
+        uses: databricks/setup-cli@v0.2.0
 
-      # Authenticate via OIDC to validate features using the Non-Prod identity context
-      - name: "Authenticate to Cloud Provider via OIDC"
-        uses: azure/login@v2 # Swap with aws-actions/configure-aws-credentials if on AWS
+      - name: "Authenticate to Google Cloud via OIDC"
+        uses: google-github-actions/auth@v2
         with:
-          client-id: ${{ secrets.CLOUD_NONPROD_CLIENT_ID }}
-          tenant-id: ${{ secrets.CLOUD_TENANT_ID }}
-          subscription-id: ${{ secrets.CLOUD_SUBSCRIPTION_ID }}
+          project_id: ${{ secrets.GCP_PROJECT_ID }}
+          workload_identity_provider: ${{ secrets.GCP_WORKLOAD_IDENTITY_PROVIDER }}
+          service_account: ${{ secrets.GCP_SERVICE_ACCOUNT }}
 
-      - name: "Validate Dev Bundle Integrity"
+      - name: "Validate Dev Asset Bundle"
+        if: github.ref == 'refs/heads/develop'
         run: databricks bundle validate
         env:
-          ARM_USE_MSI: true # Informs the runner to utilize ambient federated security contexts
-          DATABRICKS_HOST: ${{ secrets.DATABRICKS_DEV_HOST }}
+          DATABRICKS_HOST: ${{ vars.DATABRICKS_DEV_HOST }}
 
-  # ==========================================
-  # STEP 2: STAGING LAYER DEPLOYMENT & TESTING
-  # ==========================================
-  deploy-staging:
-    name: "Deploy to Staging (Dev Branch)"
-    needs: validate
+      - name: "Validate Prod Asset Bundle"
+        if: github.ref == 'refs/heads/main'
+        run: databricks bundle validate
+        env:
+          DATABRICKS_HOST: ${{ vars.DATABRICKS_PROD_HOST }}
+
+  cd-pipeline:
+    name: "Deploy Infra and Asset Bundle"
+    needs: ci-pipeline
+    if: github.event_name == 'push'
     runs-on: ubuntu-latest
-    if: github.ref == 'refs/heads/develop' && github.event_name == 'push'
     steps:
       - name: "Checkout Code"
         uses: actions/checkout@v4
 
-      - name: "Setup Databricks CLI"
-        uses: databricks/setup-cli@v1
+      - name: "Install Databricks CLI"
+        uses: databricks/setup-cli@v0.2.0
 
-      - name: "Authenticate to Non-Prod via OIDC"
-        uses: azure/login@v2
+      - name: "Setup Terraform"
+        uses: hashicorp/setup-terraform@v3
         with:
-          client-id: ${{ secrets.CLOUD_NONPROD_CLIENT_ID }}
-          tenant-id: ${{ secrets.CLOUD_TENANT_ID }}
-          subscription-id: ${{ secrets.CLOUD_SUBSCRIPTION_ID }}
+          terraform_version: "1.5.7"
 
-      - name: "Deploy Bundle to Staging Environment"
-        run: databricks bundle deploy --target staging
-        env:
-          ARM_USE_MSI: true
-          DATABRICKS_HOST: ${{ secrets.DATABRICKS_STG_HOST }}
-
-      - name: "Run Delta Live Tables Pipeline Integration Dry-Run"
-        run: databricks bundle run staging_data_pipeline_refresh
-        env:
-          ARM_USE_MSI: true
-          DATABRICKS_HOST: ${{ secrets.DATABRICKS_STG_HOST }}
-
-  # ==========================================
-  # STEP 3: LUA-PROTECTED PRODUCTION DEPLOYMENT
-  # ==========================================
-  deploy-production:
-    name: "Deploy to Production (Main Branch)"
-    needs: validate
-    runs-on: ubuntu-latest
-    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
-    # Environment rule forces manual approvals by Tech Leads/Architects in GitHub settings
-    environment: production
-    steps:
-      - name: "Checkout Code"
-        uses: actions/checkout@v4
-
-      - name: "Setup Databricks CLI"
-        uses: databricks/setup-cli@v1
-
-      - name: "Authenticate to Isolated Prod via OIDC"
-        uses: azure/login@v2
+      - name: "Authenticate to Google Cloud via OIDC"
+        uses: google-github-actions/auth@v2
         with:
-          client-id: ${{ secrets.CLOUD_PROD_CLIENT_ID }} # High-privilege production service principal
-          tenant-id: ${{ secrets.CLOUD_TENANT_ID }}
-          subscription-id: ${{ secrets.CLOUD_SUBSCRIPTION_ID }}
+          project_id: ${{ secrets.GCP_PROJECT_ID }}
+          workload_identity_provider: ${{ secrets.GCP_WORKLOAD_IDENTITY_PROVIDER }}
+          service_account: ${{ secrets.GCP_SERVICE_ACCOUNT }}
 
-      - name: "Deploy Bundle to Production Namespace"
-        run: databricks bundle deploy --target prod
-        env:
-          ARM_USE_MSI: true
-          DATABRICKS_HOST: ${{ secrets.DATABRICKS_PROD_HOST }}
-
-      - name: "Enforce Workspace Configuration Alignments"
+      # ==========================================
+      # INFRASTRUCTURE DEPLOYMENT LAYER (TERRAFORM)
+      # ==========================================
+      - name: "Terraform Apply"
         run: |
-          echo "DAB update complete. Running access privilege reconciliation."
-          echo "Persona structures sync verified against active active-directory metadata models."
+          cd infra/terraform
+          terraform init
+          terraform apply -auto-approve
+        env:
+          TF_VAR_gcp_project_id: ${{ vars.TF_VAR_gcp_project_id }}
+          TF_VAR_databricks_workspace_host: ${{ vars.TF_VAR_databricks_workspace_host }}
+          TF_VAR_databricks_uc_service_account: ${{ vars.TF_VAR_databricks_uc_service_account }}
+          TF_VAR_environment: ${{ github.ref == 'refs/heads/main' && 'prod' || 'dev' }}
+
+      # ==========================================
+      # DATA PLATFORM DEPLOYMENT LAYER (DABs)
+      # ==========================================
+      - name: "Deploy to Development Workspace"
+        if: github.ref == 'refs/heads/develop'
+        run: databricks bundle deploy -e development
+        env:
+          DATABRICKS_HOST: ${{ vars.DATABRICKS_DEV_HOST }}
+
+      - name: "Deploy to Production Workspace"
+        if: github.ref == 'refs/heads/main'
+        run: databricks bundle deploy -e production
+        env:
+          DATABRICKS_HOST: ${{ vars.DATABRICKS_PROD_HOST }}
