@@ -30,4 +30,5 @@ provider "google" {
 provider "databricks" {
   host = var.databricks_workspace_host
   # Authentication is typically handled via Environment Variables in GitHub Actions
+  google_service_account = var.databricks_uc_service_account
 }
