@@ -1,19 +1,32 @@
-output "gcs_lakehouse_bucket_name" {
-  description = "GCS Bucket name hosting the lakehouse data"
+# ==============================================================================
+# GCS Storage Outputs
+# ==============================================================================
+
+output "lakehouse_bucket_name" {
+  description = "The name of the GCS bucket created for the lakehouse"
   value       = google_storage_bucket.lakehouse_bucket.name
 }
 
-output "gcs_lakehouse_bucket_url" {
-  description = "GCS Bucket URL"
+output "lakehouse_bucket_url" {
+  description = "The gs:// URL of the GCS bucket"
   value       = google_storage_bucket.lakehouse_bucket.url
 }
 
-output "databricks_storage_credential_id" {
-  description = "Databricks Storage Credential ID"
-  value       = databricks_storage_credential.external_storage_credential.id
+# ==============================================================================
+# Databricks Medallion Catalog Outputs
+# ==============================================================================
+
+output "bronze_catalog_id" {
+  description = "The ID of the Bronze catalog"
+  value       = databricks_catalog.bronze.id
 }
 
-output "bronze_external_location_url" {
-  description = "Bronze layer external location URL"
-  value       = databricks_external_location.bronze_external_location.url
+output "silver_catalog_id" {
+  description = "The ID of the Silver catalog"
+  value       = databricks_catalog.silver.id
+}
+
+output "gold_catalog_id" {
+  description = "The ID of the Gold catalog"
+  value       = databricks_catalog.gold.id
 }
