@@ -1,44 +1,50 @@
-name: "Deploy Infrastructure"
+name: "Terraform Deployment"
 
 on:
   push:
     branches:
       - main
-    paths:
-      - "infra/terraform/**"
-
-permissions:
-  contents: read
-  id-token: write
+  pull_request:
+    branches:
+      - main
 
 jobs:
-  deploy:
-    name: "Terraform Apply"
+  terraform:
+    name: "Terraform"
     runs-on: ubuntu-latest
 
+    # Set default working directory to 'infra' for all 'run' commands
+    defaults:
+      run:
+        working-directory: infra
+
     steps:
-      - name: "Checkout Code"
+      - name: Checkout Code
         uses: actions/checkout@v4
 
-      - name: "Setup Terraform"
+      - name: Setup Terraform
         uses: hashicorp/setup-terraform@v3
         with:
-          terraform_version: "1.5.7"
+          terraform_version: 1.8.0
 
-      - name: "Authenticate to GCP via OIDC"
-        uses: google-github-actions/auth@v2
-        with:
-          project_id: ${{ secrets.GCP_PROJECT_ID }}
-          workload_identity_provider: ${{ secrets.GCP_WORKLOAD_IDENTITY_PROVIDER }}
-          service_account: ${{ secrets.GCP_SERVICE_ACCOUNT }}
+      - name: Terraform Format
+        id: fmt
+        run: terraform fmt -check
 
-      - name: "Terraform Init & Apply"
-        run: |
-          cd infra/terraform
-          terraform init
-          terraform apply -auto-approve -input=false
-        env:
-          TF_VAR_gcp_project_id: ${{ secrets.GCP_PROJECT_ID }}
-          TF_VAR_gcp_region: "us-central1"
-          TF_VAR_databricks_workspace_host: ${{ secrets.DATABRICKS_DEV_HOST }}
-          TF_VAR_databricks_uc_service_account: ${{ secrets.DATABRICKS_DEV_UC_SA }}
+      - name: Terraform Init
+        id: init
+        run: terraform init
+
+      - name: Terraform Validate
+        id: validate
+        run: terraform validate
+
+      - name: Terraform Plan
+        id: plan
+        if: github.event_name == 'pull_request'
+        run: terraform plan -no-color -input=false
+        continue-on-error: true
+
+      - name: Terraform Apply
+        if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+        run: terraform apply -auto-approve -input=false
