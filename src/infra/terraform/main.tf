@@ -9,6 +9,12 @@ resource "google_storage_bucket" "lakehouse_bucket" {
   public_access_prevention = "enforced"
 }
 
+# Automatically imports the existing bucket into Terraform state to resolve 409 conflict
+import {
+  to = google_storage_bucket.lakehouse_bucket
+  id = "${var.gcp_project_id}-lakehouse-data"
+}
+
 # ==============================================================================
 # 2. Medallion Catalogs & Schemas (Managed Storage)
 # ==============================================================================
