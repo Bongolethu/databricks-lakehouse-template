@@ -21,9 +21,8 @@ import {
 
 # --- Bronze Layer ---
 resource "databricks_catalog" "bronze" {
-  name         = "bronze"
-  comment      = "Bronze catalog for raw ingested data"
-  storage_root = "${google_storage_bucket.lakehouse_bucket.url}/bronze"
+  name    = "bronze"
+  comment = "Bronze catalog for raw ingested data"
 }
 
 resource "databricks_schema" "bronze_raw" {
@@ -33,9 +32,8 @@ resource "databricks_schema" "bronze_raw" {
 
 # --- Silver Layer ---
 resource "databricks_catalog" "silver" {
-  name         = "silver"
-  comment      = "Silver catalog for cleansed and conformed data"
-  storage_root = "${google_storage_bucket.lakehouse_bucket.url}/silver"
+  name    = "silver"
+  comment = "Silver catalog for cleansed and conformed data"
 }
 
 resource "databricks_schema" "silver_cleansed" {
@@ -45,9 +43,8 @@ resource "databricks_schema" "silver_cleansed" {
 
 # --- Gold Layer ---
 resource "databricks_catalog" "gold" {
-  name         = "gold"
-  comment      = "Gold catalog for analytics and reporting"
-  storage_root = "${google_storage_bucket.lakehouse_bucket.url}/gold"
+  name    = "gold"
+  comment = "Gold catalog for analytics and reporting"
 }
 
 resource "databricks_schema" "gold_analytics" {
