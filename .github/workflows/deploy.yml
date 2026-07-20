@@ -16,7 +16,7 @@ jobs:
     # Set default working directory to 'infra' for all 'run' commands
     defaults:
       run:
-        working-directory: infra
+        working-directory: terraform
 
     steps:
       - name: Checkout Code
