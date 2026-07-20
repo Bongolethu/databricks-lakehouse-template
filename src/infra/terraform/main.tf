@@ -9,27 +9,29 @@ resource "google_storage_bucket" "lakehouse_bucket" {
   public_access_prevention = "enforced"
 }
 
-# Automatically imports existing bucket to resolve 409 conflict
+# Import existing bucket into state
 import {
   to = google_storage_bucket.lakehouse_bucket
   id = "${var.gcp_project_id}-lakehouse-data"
 }
 
 # ==============================================================================
-# 2. Storage Credential & Root External Location
+# 2. Databricks Storage Credential & External Location
 # ==============================================================================
 
 resource "databricks_storage_credential" "external_storage_credential" {
   name = "gcp_lakehouse_storage_credential"
 
-  databricks_gcp_service_account {}
+  databricks_gcp_service_account {
+    email = "databricks-uc-sa@${var.gcp_project_id}.iam.gserviceaccount.com"
+  }
 }
 
 resource "databricks_external_location" "lakehouse_external_location" {
   name            = "lakehouse_external_location"
   url             = "${google_storage_bucket.lakehouse_bucket.url}/"
   credential_name = databricks_storage_credential.external_storage_credential.name
-  comment         = "Root external location covering gs://${var.gcp_project_id}-lakehouse-data/"
+  comment         = "Root external location for GCS lakehouse storage"
   force_destroy   = true
 }
 
