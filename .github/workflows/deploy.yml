@@ -1,60 +1,112 @@
+# name: Deploy Databricks Lakehouse
+
+# on:
+#   push:
+#     branches:
+#       - main # Triggers deployment when you push/merge into the main branch
+
+# # Mandatory permissions for requesting the secure OIDC token from GitHub
+# permissions:
+#   contents: read
+#   id-token: write
+
+# jobs:
+  
+#   deploy:
+#     runs-on: ubuntu-latest  
+#     defaults:
+#       run:
+#         working-directory: src/infra/terraform # <-- Change this to your folder name (e.g., src/terraform)
+#     steps:
+#     - name: Checkout Code
+#       uses: actions/checkout@v4
+
+#     # 1. Secure Authentication to Google Cloud via Workload Identity Federation
+#     - id: 'auth'
+#       name: 'Authenticate to Google Cloud'
+#       uses: 'google-github-actions/auth@v2'
+#       with:
+#         # Full resource path of your Workload Identity Provider
+#         workload_identity_provider: 'projects/884945754396/locations/global/workloadIdentityPools/github-pool/providers/github-provider'
+#         service_account: 'github-deployer@bongo-143414.iam.gserviceaccount.com'
+
+#     # 2. Install the Google Cloud SDK
+#     - name: 'Set up Cloud SDK'
+#       uses: 'google-github-actions/setup-gcloud@v2'
+#       with:
+#         project_id: 'bongo-143414'
+
+#     # 3. Install the Terraform CLI
+#     - name: 'Set up Terraform'
+#       uses: hashicorp/setup-terraform@v3
+#       with:
+#         terraform_version: "1.7.0"
+
+#     # 4. Terraform Initialization (Downloads GCS backend state and providers)
+#     - name: 'Terraform Init'
+#       run: terraform init -reconfigure
+
+#     # 5. Terraform Plan (Security dry-run check)
+#     - name: 'Terraform Plan'
+#       env:
+#         # Securely pass your Databricks Account ID into your variables.tf
+#         TF_VAR_databricks_account_id: ${{ secrets.DATABRICKS_ACCOUNT_ID }}
+#       run: terraform plan -input=false
+
+#     # 6. Terraform Apply (Automated deploy on merge to main)
+#     - name: 'Terraform Apply'
+#       env:
+#         TF_VAR_databricks_account_id: ${{ secrets.DATABRICKS_ACCOUNT_ID }}
+#       run: terraform apply -auto-approve -input=false
+
+
 name: Deploy Databricks Lakehouse
 
 on:
   push:
     branches:
-      - main # Triggers deployment when you push/merge into the main branch
-
-# Mandatory permissions for requesting the secure OIDC token from GitHub
-permissions:
-  contents: read
-  id-token: write
+      - main
+  workflow_dispatch:
 
 jobs:
-  
   deploy:
-    runs-on: ubuntu-latest  
+    runs-on: ubuntu-latest
     defaults:
       run:
         working-directory: src/infra/terraform # <-- Change this to your folder name (e.g., src/terraform)
+    permissions:
+      contents: read
+      id-token: write
+
     steps:
-    - name: Checkout Code
-      uses: actions/checkout@v4
+      - name: Checkout Code
+        uses: actions/checkout@v4
 
-    # 1. Secure Authentication to Google Cloud via Workload Identity Federation
-    - id: 'auth'
-      name: 'Authenticate to Google Cloud'
-      uses: 'google-github-actions/auth@v2'
-      with:
-        # Full resource path of your Workload Identity Provider
-        workload_identity_provider: 'projects/884945754396/locations/global/workloadIdentityPools/github-pool/providers/github-provider'
-        service_account: 'github-deployer@bongo-143414.iam.gserviceaccount.com'
+      - name: Authenticate to Google Cloud
+        uses: google-github-actions/auth@v2
+        with:
+          workload_identity_provider: ${{ secrets.GCP_WORKLOAD_IDENTITY_PROVIDER }}
+          service_account: ${{ secrets.GCP_SERVICE_ACCOUNT }}
 
-    # 2. Install the Google Cloud SDK
-    - name: 'Set up Cloud SDK'
-      uses: 'google-github-actions/setup-gcloud@v2'
-      with:
-        project_id: 'bongo-143414'
+      - name: Set up Cloud SDK
+        uses: google-github-actions/setup-gcloud@v2
 
-    # 3. Install the Terraform CLI
-    - name: 'Set up Terraform'
-      uses: hashicorp/setup-terraform@v3
-      with:
-        terraform_version: "1.7.0"
+      - name: Set up Terraform
+        uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: 1.6.0
 
-    # 4. Terraform Initialization (Downloads GCS backend state and providers)
-    - name: 'Terraform Init'
-      run: terraform init -reconfigure
+      - name: Terraform Init
+        run: terraform init
 
-    # 5. Terraform Plan (Security dry-run check)
-    - name: 'Terraform Plan'
-      env:
-        # Securely pass your Databricks Account ID into your variables.tf
-        TF_VAR_databricks_account_id: ${{ secrets.DATABRICKS_ACCOUNT_ID }}
-      run: terraform plan -input=false
-
-    # 6. Terraform Apply (Automated deploy on merge to main)
-    - name: 'Terraform Apply'
-      env:
-        TF_VAR_databricks_account_id: ${{ secrets.DATABRICKS_ACCOUNT_ID }}
-      run: terraform apply -auto-approve -input=false
+      - name: Terraform Apply
+        env:
+          TF_VAR_google_project_id: "bongo-143414"
+          TF_VAR_google_region: "us-central1"
+          TF_VAR_databricks_account_id: ${{ secrets.DATABRICKS_ACCOUNT_ID }}
+          TF_VAR_databricks_client_id: ${{ secrets.DATABRICKS_CLIENT_ID }}
+          TF_VAR_databricks_client_secret: ${{ secrets.DATABRICKS_CLIENT_SECRET }}
+          DATABRICKS_ACCOUNT_ID: ${{ secrets.DATABRICKS_ACCOUNT_ID }}
+          DATABRICKS_CLIENT_ID: ${{ secrets.DATABRICKS_CLIENT_ID }}
+          DATABRICKS_CLIENT_SECRET: ${{ secrets.DATABRICKS_CLIENT_SECRET }}
+        run: terraform apply -auto-approve

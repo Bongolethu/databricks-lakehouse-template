@@ -1,24 +1,33 @@
-# variables.tf
-variable "gcp_project_id" {
+variable "google_project_id" {
   type        = string
-  default     = "bongo-143414"
-  description = "The Google Cloud Project ID"
+  description = "The GCP Project ID where resources will be created."
 }
 
-variable "gcp_region" {
+variable "google_region" {
   type        = string
+  description = "GCP Region for deployment."
   default     = "us-central1"
-  description = "The Google Cloud Region"
 }
 
 variable "databricks_account_id" {
   type        = string
-  description = "Your Databricks Account ID"
+  description = "Databricks Account ID (from Account Console)."
+}
+
+variable "databricks_client_id" {
+  type        = string
+  description = "Service Principal Client ID with Account Admin rights."
+  sensitive   = true
+}
+
+variable "databricks_client_secret" {
+  type        = string
+  description = "Service Principal Secret."
   sensitive   = true
 }
 
 variable "workspace_name" {
   type        = string
-  default     = "bongo-db-workspace"
-  description = "The name of the Databricks workspace"
+  description = "Name of the Databricks Workspace to create."
+  default     = "lakehouse-workspace"
 }

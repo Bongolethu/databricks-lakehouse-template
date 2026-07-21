@@ -1,42 +1,43 @@
-﻿# provider.tf
-terraform {
-  required_version = ">= 1.0"
+﻿terraform {
+  required_version = ">= 1.5.0"
+
   required_providers {
+    databricks = {
+      source  = "databricks/databricks"
+      version = "~> 1.30"
+    }
     google = {
       source  = "hashicorp/google"
       version = "~> 5.0"
     }
-    databricks = {
-      source  = "databricks/databricks"
-      version = "~> 1.0"
-    }
-  }
-
-  backend "gcs" {
-    bucket = "bongo-143414-tfstate"
-    prefix = "terraform/state"
   }
 }
 
+# ------------------------------------------------------------------------------
+# Provider for GCP
+# ------------------------------------------------------------------------------
 provider "google" {
-  project = var.gcp_project_id
-  region  = var.gcp_region
+  project = var.google_project_id
+  region  = var.google_region
 }
 
-# 1. Fetch your active Google Cloud OAuth token
-data "google_client_config" "current" {}
-
-# 2. Force the Databricks ACCOUNT Provider to use your Google Cloud token
+# ------------------------------------------------------------------------------
+# Databricks Account-Level Provider (Used for MWS Workspace creation)
+# ------------------------------------------------------------------------------
 provider "databricks" {
-  alias      = "accounts"
-  host       = "https://accounts.gcp.databricks.com"
-  account_id = var.databricks_account_id
-  token      = data.google_client_config.current.access_token
+  alias         = "mws"
+  host          = "https://accounts.gcp.databricks.com"
+  account_id    = var.databricks_account_id
+  client_id     = var.databricks_client_id
+  client_secret = var.databricks_client_secret
 }
 
-# 3. Force the Databricks WORKSPACE Provider to use your Google Cloud token
+# ------------------------------------------------------------------------------
+# Databricks Workspace-Level Provider (Used AFTER the workspace is deployed)
+# ------------------------------------------------------------------------------
 provider "databricks" {
-  alias = "workspace"
-  host  = databricks_mws_workspaces.this.workspace_url
-  token = data.google_client_config.current.access_token
+  alias         = "workspace"
+  host          = databricks_mws_workspaces.this.workspace_url
+  client_id     = var.databricks_client_id
+  client_secret = var.databricks_client_secret
 }
