@@ -50,21 +50,8 @@ resource "google_compute_router_nat" "databricks_nat" {
 }
 
 # ==============================================================================
-# STORAGE BUCKETS (DBFS & Lakehouse)
+# STORAGE BUCKETS (Lakehouse Data)
 # ==============================================================================
-
-# GCS Bucket for Root DBFS Storage
-resource "google_storage_bucket" "databricks_dbfs_bucket" {
-  name                        = "${var.gcp_project_id}-databricks-dbfs"
-  location                    = var.gcp_region
-  project                     = var.gcp_project_id
-  force_destroy               = true
-  uniform_bucket_level_access = true
-
-  versioning {
-    enabled = true
-  }
-}
 
 # GCS Bucket for Lakehouse Data (Unity Catalog)
 resource "google_storage_bucket" "lakehouse_bucket" {
@@ -88,13 +75,6 @@ resource "google_service_account" "databricks_sa" {
   account_id   = "databricks-deployer-sa"
   display_name = "Databricks Deployer Service Account"
   project      = var.gcp_project_id
-}
-
-# Grant Storage Admin permissions on the DBFS Bucket to the Deployer Service Account
-resource "google_storage_bucket_iam_member" "dbfs_bucket_admin" {
-  bucket = google_storage_bucket.databricks_dbfs_bucket.name
-  role   = "roles/storage.admin"
-  member = "serviceAccount:${google_service_account.databricks_sa.email}"
 }
 
 # Grant Project Roles for Cluster Management (GKE, VM management)
@@ -172,13 +152,15 @@ resource "databricks_mws_workspaces" "this" {
   location       = var.gcp_region
   cloud          = "gcp"
 
-  gcp_managed_network {
-    default_catalog_gcs_bucket_url = google_storage_bucket.databricks_dbfs_bucket.url
+  # Correct syntax for GCP deployments: Databricks manages the DBFS storage container automatically
+  cloud_resource_container {
+    gcp {
+      project_id = var.gcp_project_id
+    }
   }
 
   depends_on = [
-    google_project_iam_member.databricks_project_roles,
-    google_storage_bucket_iam_member.dbfs_bucket_admin
+    google_project_iam_member.databricks_project_roles
   ]
 }
 
@@ -196,4 +178,26 @@ resource "databricks_storage_credential" "external_storage_credential" {
     databricks_mws_workspaces.this,
     google_service_account_iam_member.databricks_uc_impersonation
   ]
+}
+
+# ==============================================================================
+# DATABRICKS MEDALLION CATALOGS (Resolves output.tf errors)
+# ==============================================================================
+
+resource "databricks_catalog" "bronze" {
+  provider = databricks.workspace
+  name     = "bronze"
+  comment  = "Bronze catalog for raw ingested data"
+}
+
+resource "databricks_catalog" "silver" {
+  provider = databricks.workspace
+  name     = "silver"
+  comment  = "Silver catalog for cleaned and refined data"
+}
+
+resource "databricks_catalog" "gold" {
+  provider = databricks.workspace
+  name     = "gold"
+  comment  = "Gold catalog for aggregated business insights"
 }
