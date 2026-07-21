@@ -68,24 +68,11 @@ resource "google_storage_bucket" "lakehouse_bucket" {
 # IAM & IDENTITY (Workspace Cluster Deployer)
 # ==============================================================================
 
-# Workspace Cluster Deployer Service Account
+# Workspace Cluster Deployer Service Account (Pre-created with manual roles)
 resource "google_service_account" "databricks_sa" {
   account_id   = "databricks-deployer-sa"
   display_name = "Databricks Deployer Service Account"
   project      = var.gcp_project_id
-}
-
-# Grant Project Roles for Cluster Management (GKE, VM management)
-resource "google_project_iam_member" "databricks_project_roles" {
-  for_each = toset([
-    "roles/compute.admin",
-    "roles/container.admin",
-    "roles/iam.serviceAccountUser",
-    "roles/iam.serviceAccountTokenCreator"
-  ])
-  project = var.gcp_project_id
-  role    = each.value
-  member  = "serviceAccount:${google_service_account.databricks_sa.email}"
 }
 
 # ==============================================================================
@@ -108,11 +95,12 @@ resource "databricks_mws_workspaces" "this" {
   }
 
   depends_on = [
-    google_project_iam_member.databricks_project_roles
+    google_service_account.databricks_sa
   ]
 }
 
 # Create Storage Credential in Unity Catalog (Uses Workspace Provider)
+# (For GCP, Databricks automatically provisions the service account for you!)
 resource "databricks_storage_credential" "external_storage_credential" {
   provider = databricks.workspace
   name     = "external_gcp_storage_credential"
