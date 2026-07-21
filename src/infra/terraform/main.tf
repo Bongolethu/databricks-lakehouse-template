@@ -141,10 +141,12 @@ resource "databricks_mws_workspaces" "this" {
 }
 
 # Create Storage Credential in Unity Catalog (Uses Workspace Provider)
-# (For GCP, Databricks automatically provisions the service account for you!)
+# (Specifying the empty block activates Gcp Workload Identity Federation!)
 resource "databricks_storage_credential" "external_storage_credential" {
   provider = databricks.workspace
   name     = "external_gcp_storage_credential"
+
+  databricks_gcp_service_account {}
 
   depends_on = [
     databricks_mws_workspaces.this
@@ -155,7 +157,7 @@ resource "databricks_storage_credential" "external_storage_credential" {
 resource "google_storage_bucket_iam_member" "uc_bucket_access" {
   bucket = google_storage_bucket.lakehouse_bucket.name
   role   = "roles/storage.objectAdmin"
-  member = "serviceAccount:${databricks_storage_credential.external_storage_credential.gcp_service_account[0].email}"
+  member = "serviceAccount:${databricks_storage_credential.external_storage_credential.databricks_gcp_service_account[0].email}"
 }
 
 # ==============================================================================
