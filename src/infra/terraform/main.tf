@@ -1,60 +1,261 @@
-# main.tf — Remove terraform/required_providers from here
+# ==============================================================================
+# TERRAFORM SETTINGS & PROVIDERS
+# ==============================================================================
+terraform {
+  required_version = ">= 1.0"
+  required_providers {
+    google = {
+      source  = "hashicorp/google"
+      version = "~> 5.0"
+    }
+    databricks = {
+      source  = "databricks/databricks"
+      version = "~> 1.0"
+    }
+  }
+}
 
-resource "google_storage_bucket" "lakehouse_bucket" {
-  name                        = "${var.prefix}-lakehouse-data"
+provider "google" {
+  project = var.gcp_project_id
+  region  = var.gcp_region
+}
+
+# 1. Databricks ACCOUNT Provider (Alias: accounts)
+# Used only to provision the workspace itself
+provider "databricks" {
+  alias      = "accounts"
+  host       = "https://accounts.gcp.databricks.com"
+  account_id = var.databricks_account_id
+}
+
+# 2. Databricks WORKSPACE Provider (Alias: workspace)
+# Used to deploy workspace-level items (like Unity Catalog Credentials)
+provider "databricks" {
+  alias = "workspace"
+  host  = databricks_mws_workspaces.this.workspace_url
+}
+
+# ==============================================================================
+# INPUT VARIABLES
+# ==============================================================================
+variable "gcp_project_id" {
+  type        = string
+  default     = "bongo-143414"
+  description = "The Google Cloud Project ID"
+}
+
+variable "gcp_region" {
+  type        = string
+  default     = "us-central1"
+  description = "The Google Cloud Region"
+}
+
+variable "databricks_account_id" {
+  type        = string
+  description = "Your Databricks Account ID"
+  sensitive   = true
+}
+
+variable "workspace_name" {
+  type        = string
+  default     = "bongo-db-workspace"
+  description = "The name of the Databricks workspace"
+}
+
+# ==============================================================================
+# GOOGLE CLOUD NETWORKING (Customer-Managed VPC for GKE)
+# ==============================================================================
+
+# Custom VPC Network
+resource "google_compute_network" "databricks_vpc" {
+  name                    = "databricks-vpc"
+  auto_create_subnetworks = false
+  project                 = var.gcp_project_id
+}
+
+# Subnetwork with GKE Secondary Ranges for Databricks Compute Nodes
+resource "google_compute_subnetwork" "databricks_subnet" {
+  name                     = "databricks-subnet"
+  ip_cidr_range            = "10.0.0.0/20" # Primary Node range
+  network                  = google_compute_network.databricks_vpc.id
+  region                   = var.gcp_region
+  project                  = var.gcp_project_id
+  private_ip_google_access = true
+
+  secondary_ip_range {
+    range_name    = "databricks-pods"
+    ip_cidr_range = "10.1.0.0/16"
+  }
+
+  secondary_ip_range {
+    range_name    = "databricks-services"
+    ip_cidr_range = "10.2.0.0/20"
+  }
+}
+
+# Cloud Router (for NAT)
+resource "google_compute_router" "databricks_router" {
+  name    = "databricks-router"
+  region  = var.gcp_region
+  network = google_compute_network.databricks_vpc.id
+  project = var.gcp_project_id
+}
+
+# Cloud NAT Gateway for secure outbound internet egress (without public IPs)
+resource "google_compute_router_nat" "databricks_nat" {
+  name                               = "databricks-nat"
+  router                             = google_compute_router.databricks_router.name
+  region                             = var.gcp_region
+  project                            = var.gcp_project_id
+  nat_ip_allocate_option             = "AUTO_ONLY"
+  source_subnetwork_ip_ranges_to_nat = "ALL_SUBNETWORKS_ALL_IP_RANGES"
+}
+
+# ==============================================================================
+# STORAGE BUCKETS (DBFS & Lakehouse)
+# ==============================================================================
+
+# GCS Bucket for Root DBFS Storage
+resource "google_storage_bucket" "databricks_dbfs_bucket" {
+  name                        = "${var.gcp_project_id}-databricks-dbfs"
   location                    = var.gcp_region
+  project                     = var.gcp_project_id
   force_destroy               = true
   uniform_bucket_level_access = true
-  public_access_prevention    = "enforced"
+
+  versioning {
+    enabled = true
+  }
 }
 
-resource "databricks_storage_credential" "external_storage_credential" {
-  name            = "${var.prefix}-storage-cred"
-  skip_validation = true
+# GCS Bucket for Lakehouse Data (Unity Catalog)
+resource "google_storage_bucket" "lakehouse_bucket" {
+  name                        = "${var.gcp_project_id}-lakehouse-data"
+  location                    = var.gcp_region
+  project                     = var.gcp_project_id
+  force_destroy               = true
+  uniform_bucket_level_access = true
 
-  databricks_gcp_service_account {}
-
-  comment = "Storage credential using GCP Workload Identity Federation"
+  versioning {
+    enabled = true
+  }
 }
 
-resource "google_storage_bucket_iam_member" "uc_bucket_admin" {
+# ==============================================================================
+# IAM & IDENTITY (Workspace & Unity Catalog Service Accounts)
+# ==============================================================================
+
+# 1. Workspace Cluster Deployer Service Account
+resource "google_service_account" "databricks_sa" {
+  account_id   = "databricks-deployer-sa"
+  display_name = "Databricks Deployer Service Account"
+  project      = var.gcp_project_id
+}
+
+# Grant Storage Admin permissions on the DBFS Bucket to the Deployer Service Account
+resource "google_storage_bucket_iam_member" "dbfs_bucket_admin" {
+  bucket = google_storage_bucket.databricks_dbfs_bucket.name
+  role   = "roles/storage.admin"
+  member = "serviceAccount:${google_service_account.databricks_sa.email}"
+}
+
+# Grant Project Roles for Cluster Management (GKE, VM management)
+resource "google_project_iam_member" "databricks_project_roles" {
+  for_each = toset([
+    "roles/compute.admin",
+    "roles/container.admin",
+    "roles/iam.serviceAccountUser",
+    "roles/iam.serviceAccountTokenCreator"
+  ])
+  project = var.gcp_project_id
+  role    = each.value
+  member  = "serviceAccount:${google_service_account.databricks_sa.email}"
+}
+
+# 2. Unity Catalog Service Account
+resource "google_service_account" "databricks_uc_sa" {
+  account_id   = "databricks-uc-sa"
+  display_name = "Databricks Unity Catalog Service Account"
+  project      = var.gcp_project_id
+}
+
+# Grant Object Admin on Lakehouse Bucket to Unity Catalog Service Account
+resource "google_storage_bucket_iam_member" "uc_bucket_access" {
   bucket = google_storage_bucket.lakehouse_bucket.name
   role   = "roles/storage.objectAdmin"
-  member = "serviceAccount:${databricks_storage_credential.external_storage_credential.databricks_gcp_service_account[0].email}"
+  member = "serviceAccount:${google_service_account.databricks_uc_sa.email}"
 }
 
-resource "databricks_external_location" "external_location" {
-  name            = "${var.prefix}-external-location"
-  url             = google_storage_bucket.lakehouse_bucket.url
-  credential_name = databricks_storage_credential.external_storage_credential.name
-  comment         = "External location pointing to Lakehouse GCS bucket"
-
-  depends_on = [google_storage_bucket_iam_member.uc_bucket_admin]
+# Allow Databricks system identity to impersonate our local UC Service Account
+# (Solves: "Gcp Workload Identity Federation is not enabled" error)
+resource "google_service_account_iam_member" "databricks_uc_impersonation" {
+  service_account_id = google_service_account.databricks_uc_sa.name
+  role               = "roles/iam.serviceAccountTokenCreator"
+  member             = "serviceAccount:gcp-unity-catalog@databricks-prod-gcp.iam.gserviceaccount.com"
 }
 
-resource "databricks_catalog" "bronze" {
-  name          = "${var.prefix}_bronze"
-  comment       = "Bronze tier catalog"
-  storage_root  = "${google_storage_bucket.lakehouse_bucket.url}/bronze"
-  force_destroy = true
+# ==============================================================================
+# WORKLOAD IDENTITY FEDERATION (For GitHub Actions Deployments)
+# ==============================================================================
 
-  depends_on = [databricks_external_location.external_location]
+# Pool
+resource "google_iam_workload_identity_pool" "github_pool" {
+  workload_identity_pool_id = "github-pool"
+  display_name              = "GitHub Actions Pool"
+  project                   = var.gcp_project_id
 }
 
-resource "databricks_catalog" "silver" {
-  name          = "${var.prefix}_silver"
-  comment       = "Silver tier catalog"
-  storage_root  = "${google_storage_bucket.lakehouse_bucket.url}/silver"
-  force_destroy = true
+# Provider
+resource "google_iam_workload_identity_pool_provider" "github_provider" {
+  workload_identity_pool_id          = google_iam_workload_identity_pool.github_pool.workload_identity_pool_id
+  workload_identity_pool_provider_id = "github-provider"
+  project                            = var.gcp_project_id
 
-  depends_on = [databricks_external_location.external_location]
+  attribute_mapping = {
+    "google.subject"       = "assertion.sub"
+    "attribute.actor"      = "assertion.actor"
+    "attribute.repository" = "assertion.repository"
+  }
+
+  oidc {
+    issuer_uri = "https://token.actions.githubusercontent.com"
+  }
 }
 
-resource "databricks_catalog" "gold" {
-  name          = "${var.prefix}_gold"
-  comment       = "Gold tier catalog"
-  storage_root  = "${google_storage_bucket.lakehouse_bucket.url}/gold"
-  force_destroy = true
+# ==============================================================================
+# DATABRICKS WORKSPACE & UNITY CATALOG CREDENTIALS
+# ==============================================================================
 
-  depends_on = [databricks_external_location.external_location]
+# Create Databricks Workspace (Uses Accounts Provider)
+resource "databricks_mws_workspaces" "this" {
+  provider       = databricks.accounts
+  account_id     = var.databricks_account_id
+  workspace_name = var.workspace_name
+  location       = var.gcp_region
+  cloud          = "gcp"
+
+  gcp_managed_network {
+    default_catalog_gcs_bucket_url = google_storage_bucket.databricks_dbfs_bucket.url
+  }
+
+  depends_on = [
+    google_project_iam_member.databricks_project_roles,
+    google_storage_bucket_iam_member.dbfs_bucket_admin
+  ]
+}
+
+# Create Storage Credential in Unity Catalog (Uses Workspace Provider)
+# (Solves: "failed to validate workspace_id: Invalid access token" error)
+resource "databricks_storage_credential" "external_storage_credential" {
+  provider = databricks.workspace
+  name     = "external_gcp_storage_credential"
+
+  gcp_service_account {
+    email = google_service_account.databricks_uc_sa.email
+  }
+
+  depends_on = [
+    databricks_mws_workspaces.this,
+    google_service_account_iam_member.databricks_uc_impersonation
+  ]
 }
