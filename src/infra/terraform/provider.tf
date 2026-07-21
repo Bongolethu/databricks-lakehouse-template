@@ -1,4 +1,4 @@
-# provider.tf
+﻿# provider.tf
 terraform {
   required_version = ">= 1.0"
   required_providers {
@@ -23,15 +23,20 @@ provider "google" {
   region  = var.gcp_region
 }
 
-# Databricks ACCOUNT Provider (Alias: accounts)
+# 1. Fetch your active Google Cloud OAuth token
+data "google_client_config" "current" {}
+
+# 2. Force the Databricks ACCOUNT Provider to use your Google Cloud token
 provider "databricks" {
   alias      = "accounts"
   host       = "https://accounts.gcp.databricks.com"
   account_id = var.databricks_account_id
+  token      = data.google_client_config.current.access_token
 }
 
-# Databricks WORKSPACE Provider (Alias: workspace)
+# 3. Force the Databricks WORKSPACE Provider to use your Google Cloud token
 provider "databricks" {
   alias = "workspace"
   host  = databricks_mws_workspaces.this.workspace_url
+  token = data.google_client_config.current.access_token
 }
