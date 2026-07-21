@@ -1,5 +1,4 @@
-# main.tf
-
+ 
 # ==============================================================================
 # GOOGLE CLOUD NETWORKING (Customer-Managed VPC for GKE)
 # ==============================================================================
@@ -98,3 +97,87 @@ resource "google_project_iam_member" "databricks_project_roles" {
 resource "google_iam_workload_identity_pool" "github_pool" {
   workload_identity_pool_id = "github-pool"
   display_name              = "GitHub Actions Pool"
+  project                   = var.gcp_project_id
+}
+
+# Provider
+resource "google_iam_workload_identity_pool_provider" "github_provider" {
+  workload_identity_pool_id          = google_iam_workload_identity_pool.github_pool.workload_identity_pool_id
+  workload_identity_pool_provider_id = "github-provider"
+  project                            = var.gcp_project_id
+
+  attribute_mapping = {
+    "google.subject"       = "assertion.sub"
+    "attribute.actor"      = "assertion.actor"
+    "attribute.repository" = "assertion.repository"
+  }
+
+  oidc {
+    issuer_uri = "https://token.actions.githubusercontent.com"
+  }
+}
+
+# ==============================================================================
+# DATABRICKS WORKSPACE & UNITY CATALOG CREDENTIALS
+# ==============================================================================
+
+# Create Databricks Workspace (Uses Accounts Provider)
+resource "databricks_mws_workspaces" "this" {
+  provider       = databricks.accounts
+  account_id     = var.databricks_account_id
+  workspace_name = var.workspace_name
+  location       = var.gcp_region
+  cloud          = "gcp"
+
+  # Databricks manages the DBFS storage container automatically
+  cloud_resource_container {
+    gcp {
+      project_id = var.gcp_project_id
+    }
+  }
+
+  depends_on = [
+    google_project_iam_member.databricks_project_roles
+  ]
+}
+
+# Create Storage Credential in Unity Catalog (Uses Workspace Provider)
+# (For GCP, Databricks automatically provisions the service account for you!)
+resource "databricks_storage_credential" "external_storage_credential" {
+  provider = databricks.workspace
+  name     = "external_gcp_storage_credential"
+
+  depends_on = [
+    databricks_mws_workspaces.this
+  ]
+}
+
+# Automatically grant Object Admin access on the GCS Bucket to the Databricks-Generated SA email
+resource "google_storage_bucket_iam_member" "uc_bucket_access" {
+  bucket = google_storage_bucket.lakehouse_bucket.name
+  role   = "roles/storage.objectAdmin"
+  member = "serviceAccount:${databricks_storage_credential.external_storage_credential.gcp_service_account[0].email}"
+}
+
+# ==============================================================================
+# DATABRICKS MEDALLION CATALOGS (Resolves output.tf errors)
+# ==============================================================================
+
+resource "databricks_catalog" "bronze" {
+  provider = databricks.workspace
+  name     = "bronze"
+  comment  = "Bronze catalog for raw ingested data"
+}
+
+resource "databricks_catalog" "silver" {
+  provider = databricks.workspace
+  name     = "silver"
+  comment  = "Silver catalog for cleaned and refined data"
+}
+
+resource "databricks_catalog" "gold" {
+  provider = databricks.workspace
+  name     = "gold"
+  comment  = "Gold catalog for aggregated business insights"
+}
+ 
