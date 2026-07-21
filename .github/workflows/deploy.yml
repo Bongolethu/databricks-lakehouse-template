@@ -11,8 +11,12 @@ permissions:
   id-token: write
 
 jobs:
+  
   deploy:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-latest  
+    defaults:
+      run:
+        working-directory: src/infra/terraform # <-- Change this to your folder name (e.g., src/terraform)
     steps:
     - name: Checkout Code
       uses: actions/checkout@v4
