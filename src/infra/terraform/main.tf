@@ -1,5 +1,4 @@
- 
-# ==============================================================================
+﻿# ==============================================================================
 # GOOGLE CLOUD NETWORKING (Customer-Managed VPC for GKE)
 # ==============================================================================
 
@@ -180,4 +179,3 @@ resource "databricks_catalog" "gold" {
   name     = "gold"
   comment  = "Gold catalog for aggregated business insights"
 }
- 
