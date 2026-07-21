@@ -1,14 +1,11 @@
-variable "gcp_project_id" {
+variable "prefix" {
   type        = string
-  description = "GCP Project ID"
+  description = "Prefix for resources"
+  default     = "bongo"
 }
 
-variable "databricks_workspace_host" {
+variable "gcp_region" {
   type        = string
-  description = "Databricks Workspace Host URL"
-}
-
-variable "databricks_uc_service_account" {
-  type        = string
-  description = "Databricks Unity Catalog Service Account Email"
+  description = "GCP Region"
+  default     = "us-central1"
 }
