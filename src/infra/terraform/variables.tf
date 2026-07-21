@@ -1,23 +1,24 @@
 # variables.tf
-
 variable "gcp_project_id" {
   type        = string
-  description = "The GCP Project ID where resources will be created"
-}
-
-variable "databricks_host" {
-  type        = string
-  description = "The Databricks workspace URL (e.g., https://<instance-id>.cloud.databricks.com)"
-}
-
-variable "prefix" {
-  type        = string
-  description = "Prefix applied to created resources"
-  default     = "bongo"
+  default     = "bongo-143414"
+  description = "The Google Cloud Project ID"
 }
 
 variable "gcp_region" {
   type        = string
-  description = "The GCP region for storage buckets and compute resources"
   default     = "us-central1"
+  description = "The Google Cloud Region"
+}
+
+variable "databricks_account_id" {
+  type        = string
+  description = "Your Databricks Account ID"
+  sensitive   = true
+}
+
+variable "workspace_name" {
+  type        = string
+  default     = "bongo-db-workspace"
+  description = "The name of the Databricks workspace"
 }

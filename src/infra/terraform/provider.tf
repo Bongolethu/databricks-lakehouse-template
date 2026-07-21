@@ -1,8 +1,6 @@
 # provider.tf
-
 terraform {
-  required_version = ">= 1.5.0"
-
+  required_version = ">= 1.0"
   required_providers {
     google = {
       source  = "hashicorp/google"
@@ -10,8 +8,13 @@ terraform {
     }
     databricks = {
       source  = "databricks/databricks"
-      version = "~> 1.30"
+      version = "~> 1.0"
     }
+  }
+
+  backend "gcs" {
+    bucket = "bongo-143414-tfstate"
+    prefix = "terraform/state"
   }
 }
 
@@ -20,6 +23,15 @@ provider "google" {
   region  = var.gcp_region
 }
 
+# Databricks ACCOUNT Provider (Alias: accounts)
 provider "databricks" {
-  host = var.databricks_host
+  alias      = "accounts"
+  host       = "https://accounts.gcp.databricks.com"
+  account_id = var.databricks_account_id
+}
+
+# Databricks WORKSPACE Provider (Alias: workspace)
+provider "databricks" {
+  alias = "workspace"
+  host  = databricks_mws_workspaces.this.workspace_url
 }
