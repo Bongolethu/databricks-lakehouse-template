@@ -89,34 +89,6 @@ resource "google_project_iam_member" "databricks_project_roles" {
 }
 
 # ==============================================================================
-# WORKLOAD IDENTITY FEDERATION (For GitHub Actions Deployments)
-# ==============================================================================
-
-# Pool
-resource "google_iam_workload_identity_pool" "github_pool" {
-  workload_identity_pool_id = "github-pool"
-  display_name              = "GitHub Actions Pool"
-  project                   = var.gcp_project_id
-}
-
-# Provider
-resource "google_iam_workload_identity_pool_provider" "github_provider" {
-  workload_identity_pool_id          = google_iam_workload_identity_pool.github_pool.workload_identity_pool_id
-  workload_identity_pool_provider_id = "github-provider"
-  project                            = var.gcp_project_id
-
-  attribute_mapping = {
-    "google.subject"       = "assertion.sub"
-    "attribute.actor"      = "assertion.actor"
-    "attribute.repository" = "assertion.repository"
-  }
-
-  oidc {
-    issuer_uri = "https://token.actions.githubusercontent.com"
-  }
-}
-
-# ==============================================================================
 # DATABRICKS WORKSPACE & UNITY CATALOG CREDENTIALS
 # ==============================================================================
 
@@ -141,7 +113,6 @@ resource "databricks_mws_workspaces" "this" {
 }
 
 # Create Storage Credential in Unity Catalog (Uses Workspace Provider)
-# (Specifying the empty block activates Gcp Workload Identity Federation!)
 resource "databricks_storage_credential" "external_storage_credential" {
   provider = databricks.workspace
   name     = "external_gcp_storage_credential"
