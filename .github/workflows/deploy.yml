@@ -12,12 +12,16 @@ permissions:
 jobs:
   deploy:
     runs-on: ubuntu-latest
+    # --- ADDED WORKING DIRECTORY HERE ---
+    defaults:
+      run:
+        working-directory: src/infra/terraform # <-- CHANGE THIS to your path (e.g., ./terraform)
+    # ------------------------------------
     steps:
     - name: Checkout Code
       uses: actions/checkout@v4
 
     # 1. Authenticate to Google Cloud
-    # Using GitHub Variables with failsafe hardcoded fallbacks
     - id: 'auth'
       name: 'Authenticate to Google Cloud'
       uses: 'google-github-actions/auth@v2'
@@ -30,7 +34,6 @@ jobs:
       uses: 'google-github-actions/setup-gcloud@v2'
       with:
         version: '>= 363.0.0'
-        # The project ID is now correctly mapped to your GCP project variable
         project_id: ${{ vars.GCP_PROJECT_ID || 'bongo-143414' }}
 
     # 3. Install Terraform
