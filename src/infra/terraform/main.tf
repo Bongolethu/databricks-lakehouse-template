@@ -66,7 +66,7 @@ resource "google_service_account" "databricks_sa" {
 }
 
 resource "databricks_mws_workspaces" "this" {
-  provider       = databricks.mws # Account-level provider alias
+  provider       = databricks.mws
   account_id     = var.databricks_account_id
   workspace_name = var.workspace_name
   location       = var.gcp_region
@@ -87,7 +87,6 @@ resource "databricks_mws_workspaces" "this" {
 # UNITY CATALOG CREDENTIALS & BUCKET ACCESS
 # ==============================================================================
 resource "databricks_storage_credential" "external_storage_credential" {
-  # Default provider (workspace level)
   name = "external_gcp_storage_credential"
   databricks_gcp_service_account {}
 
