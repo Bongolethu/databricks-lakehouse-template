@@ -16,19 +16,22 @@ jobs:
     - name: Checkout Code
       uses: actions/checkout@v4
 
-    # 1. Authenticate using GitHub Variables
+    # 1. Authenticate to Google Cloud
+    # Using GitHub Variables with failsafe hardcoded fallbacks
     - id: 'auth'
       name: 'Authenticate to Google Cloud'
       uses: 'google-github-actions/auth@v2'
       with:
-        workload_identity_provider: ${{ vars.GCP_WORKLOAD_IDENTITY_PROVIDER }}
-        service_account: ${{ vars.GCP_SERVICE_ACCOUNT }}
+        workload_identity_provider: ${{ vars.GCP_WORKLOAD_IDENTITY_PROVIDER || 'projects/884945754396/locations/global/workloadIdentityPools/github-pool/providers/github-provider' }}
+        service_account: ${{ vars.GCP_SERVICE_ACCOUNT || 'github-deployer@bongo-143414.iam.gserviceaccount.com' }}
 
-    # 2. Set up Cloud SDK using GitHub Variable
+    # 2. Set up Cloud SDK
     - name: 'Set up Cloud SDK'
       uses: 'google-github-actions/setup-gcloud@v2'
       with:
-        project_id: ${{ vars.GCP_PROJECT_ID }}
+        version: '>= 363.0.0'
+        # The project ID is now correctly mapped to your GCP project variable
+        project_id: ${{ vars.GCP_PROJECT_ID || 'bongo-143414' }}
 
     # 3. Install Terraform
     - name: 'Set up Terraform'
@@ -40,10 +43,10 @@ jobs:
     - name: 'Terraform Init'
       run: terraform init -reconfigure
 
-    # 5. Terraform Plan (Mapping Secrets to TF Variables)
+    # 5. Terraform Plan
     - name: 'Terraform Plan'
       env:
-        TF_VAR_gcp_project_id: ${{ vars.GCP_PROJECT_ID }}
+        TF_VAR_gcp_project_id: ${{ vars.GCP_PROJECT_ID || 'bongo-143414' }}
         TF_VAR_databricks_account_id: ${{ secrets.DATABRICKS_ACCOUNT_ID }}
         TF_VAR_databricks_client_id: ${{ secrets.DATABRICKS_CLIENT_ID }}
         TF_VAR_databricks_client_secret: ${{ secrets.DATABRICKS_CLIENT_SECRET }}
@@ -52,7 +55,7 @@ jobs:
     # 6. Terraform Apply
     - name: 'Terraform Apply'
       env:
-        TF_VAR_gcp_project_id: ${{ vars.GCP_PROJECT_ID }}
+        TF_VAR_gcp_project_id: ${{ vars.GCP_PROJECT_ID || 'bongo-143414' }}
         TF_VAR_databricks_account_id: ${{ secrets.DATABRICKS_ACCOUNT_ID }}
         TF_VAR_databricks_client_id: ${{ secrets.DATABRICKS_CLIENT_ID }}
         TF_VAR_databricks_client_secret: ${{ secrets.DATABRICKS_CLIENT_SECRET }}
