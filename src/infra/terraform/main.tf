@@ -1,33 +1,58 @@
-﻿# ------------------------------------------------------------------------------
-# Databricks MWS Workspace Creation (GCP Example)
-# ------------------------------------------------------------------------------
-resource "databricks_mws_workspaces" "this" {
-  provider       = databricks.mws
-  account_id     = var.databricks_account_id
-  workspace_name = var.workspace_name
-  location       = var.google_region
+﻿name: Deploy Databricks Lakehouse
 
-  cloud_resource_container {
-    gcp {
-      project_id = var.google_project_id
-    }
-  }
-}
+on:
+  push:
+    branches:
+      - main # Triggers deployment when you push/merge into the main branch
 
-# ------------------------------------------------------------------------------
-# Example Workspace-Level Resources (Uses workspace provider)
-# ------------------------------------------------------------------------------
-resource "databricks_storage_credential" "external_storage_credential" {
-  provider = databricks.workspace
-  name     = "external_gcp_storage_credential"
+permissions:
+  contents: read
+  id-token: write
 
-  databricks_gcp_service_account {}
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+    - name: Checkout Code
+      uses: actions/checkout@v4
 
-  depends_on = [databricks_mws_workspaces.this]
-}
+    # 1. Secure Authentication to Google Cloud via Workload Identity Federation
+    - id: 'auth'
+      name: 'Authenticate to Google Cloud'
+      uses: 'google-github-actions/auth@v2'
+      with:
+        # Full resource path of your active Workload Identity Provider
+        workload_identity_provider: 'projects/884945754396/locations/global/workloadIdentityPools/github-pool/providers/github-provider'
+        service_account: 'github-deployer@bongo-143414.iam.gserviceaccount.com'
 
-resource "google_storage_bucket_iam_member" "uc_bucket_access" {
-  bucket = "${var.google_project_id}-lakehouse-data"
-  role   = "roles/storage.objectAdmin"
-  member = "serviceAccount:${databricks_storage_credential.external_storage_credential.databricks_gcp_service_account[0].email}"
-}
+    # 2. Install the Google Cloud SDK
+    - name: 'Set up Cloud SDK'
+      uses: 'google-github-actions/setup-gcloud@v2'
+      with:
+        project_id: 'bongo-143414'
+
+    # 3. Install the Terraform CLI
+    - name: 'Set up Terraform'
+      uses: hashicorp/setup-terraform@v3
+      with:
+        terraform_version: "1.7.0"
+
+    # 4. Terraform Initialization (Downloads GCS backend state and providers)
+    - name: 'Terraform Init'
+      run: terraform init -reconfigure
+
+    # 5. Terraform Plan (Security dry-run check)
+    - name: 'Terraform Plan'
+      env:
+        TF_VAR_databricks_account_id: ${{ secrets.DATABRICKS_ACCOUNT_ID }}
+        TF_VAR_databricks_client_id: ${{ secrets.DATABRICKS_CLIENT_ID }}
+        TF_VAR_databricks_client_secret: ${{ secrets.DATABRICKS_CLIENT_SECRET }}
+      run: terraform plan -input=false
+
+    # 6. Terraform Apply (Automated deploy on merge to main)
+    - name: 'Terraform Apply'
+      env:
+        TF_VAR_databricks_account_id: ${{ secrets.DATABRICKS_ACCOUNT_ID }}
+        TF_VAR_databricks_client_id: ${{ secrets.DATABRICKS_CLIENT_ID }}
+        TF_VAR_databricks_client_secret: ${{ secrets.DATABRICKS_CLIENT_SECRET }}
+      run: terraform apply -auto-approve -input=false
