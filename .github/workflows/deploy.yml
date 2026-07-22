@@ -1,4 +1,4 @@
-name: Deploy Databricks Lakehouse
+name: Deploy Databricks Lakehouses
 
 on:
   push:
