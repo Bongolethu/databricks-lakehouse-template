@@ -16,22 +16,20 @@
   }
 }
 
-data "google_client_config" "current" {}
-
 provider "google" {
   project = "bongo-143414"
   region  = "us-central1"
 }
 
+# 1. ACCOUNT Provider (Pre-filled with your ID)
 provider "databricks" {
   alias      = "accounts"
   host       = "https://accounts.gcp.databricks.com"
-  account_id = "YOUR_DATABRICKS_ACCOUNT_ID"
-  token      = data.google_client_config.current.access_token
+  account_id = "0015ba30-7a2a-469c-94cb-02579c15334a"
 }
 
+# 2. WORKSPACE Provider
 provider "databricks" {
   alias = "workspace"
   host  = databricks_mws_workspaces.this.workspace_url
-  token = data.google_client_config.current.access_token
 }
