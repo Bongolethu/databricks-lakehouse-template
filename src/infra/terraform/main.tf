@@ -57,7 +57,7 @@ resource "google_storage_bucket" "lakehouse_bucket" {
 }
 
 # ==============================================================================
-# DATABRICKS WORKSPACE & UNITY CATALOG
+# DATABRICKS WORKSPACE & SERVICE ACCOUNT
 # ==============================================================================
 resource "google_service_account" "databricks_sa" {
   account_id   = "databricks-deployer-sa"
@@ -66,7 +66,7 @@ resource "google_service_account" "databricks_sa" {
 }
 
 resource "databricks_mws_workspaces" "this" {
-  provider       = databricks.mws # Fixed: Matched to provider.tf alias = "mws"
+  provider       = databricks.mws # Account-level provider alias
   account_id     = var.databricks_account_id
   workspace_name = var.workspace_name
   location       = var.gcp_region
@@ -83,11 +83,14 @@ resource "databricks_mws_workspaces" "this" {
   ]
 }
 
+# ==============================================================================
+# UNITY CATALOG CREDENTIALS & BUCKET ACCESS
+# ==============================================================================
 resource "databricks_storage_credential" "external_storage_credential" {
-  # Uses default databricks provider (workspace level)
+  # Default provider (workspace level)
   name = "external_gcp_storage_credential"
   databricks_gcp_service_account {}
-  
+
   depends_on = [
     databricks_mws_workspaces.this
   ]
@@ -103,16 +106,13 @@ resource "google_storage_bucket_iam_member" "uc_bucket_access" {
 # CATALOGS
 # ==============================================================================
 resource "databricks_catalog" "bronze" {
-  # Uses default databricks provider (workspace level)
   name = "bronze"
 }
 
 resource "databricks_catalog" "silver" {
-  # Uses default databricks provider (workspace level)
   name = "silver"
 }
 
 resource "databricks_catalog" "gold" {
-  # Uses default databricks provider (workspace level)
   name = "gold"
 }

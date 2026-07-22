@@ -3,13 +3,11 @@
 # ==============================================================================
 variable "gcp_project_id" {
   type        = string
-  default     = "bongo-143414"
   description = "The Google Cloud Project ID"
 }
 
 variable "gcp_region" {
   type        = string
-  default     = "us-central1"
   description = "The Google Cloud Region"
 }
 
@@ -24,18 +22,17 @@ variable "databricks_account_id" {
 
 variable "workspace_name" {
   type        = string
-  default     = "bongo-db-workspace"
   description = "The name of the Databricks workspace"
 }
 
 variable "databricks_host" {
   type        = string
-  description = "The Databricks Workspace Host URL (needed for workspace-level provider)"
+  description = "Databricks Workspace host URL (populated post-provisioning)"
   default     = ""
 }
 
 # ==============================================================================
-# DATABRICKS AUTHENTICATION (OAUTH / SERVICE PRINCIPAL)
+# DATABRICKS AUTHENTICATION
 # ==============================================================================
 variable "databricks_client_id" {
   type        = string
