@@ -1,4 +1,5 @@
-﻿terraform {
+﻿# provider.tf
+terraform {
   required_version = ">= 1.0"
   required_providers {
     google = {
@@ -7,7 +8,7 @@
     }
     databricks = {
       source  = "databricks/databricks"
-      version = ">= 1.0.0"
+      version = ">= 1.0"
     }
   }
 
@@ -18,23 +19,25 @@
 }
 
 provider "google" {
-  project = var.gcp_project_id
-  region  = var.gcp_region
+  project = "bongo-143414"
+  region  = "us-central1"
 }
 
-# Databricks ACCOUNT Provider
+# 1. Databricks ACCOUNT Provider (HARDCODED)
 provider "databricks" {
   alias         = "accounts"
   host          = "https://accounts.gcp.databricks.com"
-  account_id    = var.databricks_account_id
-  client_id     = var.databricks_client_id
-  client_secret = var.databricks_client_secret
+  # PASTE YOUR ACTUAL VALUES HERE:
+  account_id    = "PASTE_YOUR_DATABRICKS_ACCOUNT_ID_HERE"
+  client_id     = "PASTE_YOUR_DATABRICKS_APPLICATION_ID_HERE"
+  client_secret = "PASTE_YOUR_DATABRICKS_SECRET_HERE"
 }
 
-# Databricks WORKSPACE Provider
+# 2. Databricks WORKSPACE Provider (HARDCODED)
 provider "databricks" {
   alias         = "workspace"
   host          = databricks_mws_workspaces.this.workspace_url
-  client_id     = var.databricks_client_id
-  client_secret = var.databricks_client_secret
+  # PASTE YOUR ACTUAL VALUES HERE:
+  client_id     = "PASTE_YOUR_DATABRICKS_APPLICATION_ID_HERE"
+  client_secret = "PASTE_YOUR_DATABRICKS_SECRET_HERE"
 }
