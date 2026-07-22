@@ -1,5 +1,4 @@
-﻿#main.t
-# ==============================================================================
+﻿# ==============================================================================
 # GOOGLE CLOUD NETWORKING
 # ==============================================================================
 resource "google_compute_network" "databricks_vpc" {
@@ -67,7 +66,7 @@ resource "google_service_account" "databricks_sa" {
 }
 
 resource "databricks_mws_workspaces" "this" {
-  provider       = databricks.accounts
+  provider       = databricks.mws # Fixed: Matched to provider.tf alias = "mws"
   account_id     = var.databricks_account_id
   workspace_name = var.workspace_name
   location       = var.gcp_region
@@ -85,9 +84,10 @@ resource "databricks_mws_workspaces" "this" {
 }
 
 resource "databricks_storage_credential" "external_storage_credential" {
-  provider = databricks.workspace
-  name     = "external_gcp_storage_credential"
+  # Uses default databricks provider (workspace level)
+  name = "external_gcp_storage_credential"
   databricks_gcp_service_account {}
+  
   depends_on = [
     databricks_mws_workspaces.this
   ]
@@ -103,14 +103,16 @@ resource "google_storage_bucket_iam_member" "uc_bucket_access" {
 # CATALOGS
 # ==============================================================================
 resource "databricks_catalog" "bronze" {
-  provider = databricks.workspace
-  name     = "bronze"
+  # Uses default databricks provider (workspace level)
+  name = "bronze"
 }
+
 resource "databricks_catalog" "silver" {
-  provider = databricks.workspace
-  name     = "silver"
+  # Uses default databricks provider (workspace level)
+  name = "silver"
 }
+
 resource "databricks_catalog" "gold" {
-  provider = databricks.workspace
-  name     = "gold"
+  # Uses default databricks provider (workspace level)
+  name = "gold"
 }

@@ -1,4 +1,6 @@
-# variables.tf
+# ==============================================================================
+# GCP CONFIGURATION
+# ==============================================================================
 variable "gcp_project_id" {
   type        = string
   default     = "bongo-143414"
@@ -11,6 +13,9 @@ variable "gcp_region" {
   description = "The Google Cloud Region"
 }
 
+# ==============================================================================
+# DATABRICKS WORKSPACE & ACCOUNT CONFIGURATION
+# ==============================================================================
 variable "databricks_account_id" {
   type        = string
   description = "Your Databricks Account ID"
@@ -23,6 +28,15 @@ variable "workspace_name" {
   description = "The name of the Databricks workspace"
 }
 
+variable "databricks_host" {
+  type        = string
+  description = "The Databricks Workspace Host URL (needed for workspace-level provider)"
+  default     = ""
+}
+
+# ==============================================================================
+# DATABRICKS AUTHENTICATION (OAUTH / SERVICE PRINCIPAL)
+# ==============================================================================
 variable "databricks_client_id" {
   type        = string
   description = "Databricks OAuth Client ID"
